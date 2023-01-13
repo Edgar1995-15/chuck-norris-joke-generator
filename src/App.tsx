@@ -13,7 +13,6 @@ function App() {
     useState<boolean>(false);
 
   const intervalRef: any = useRef(null);
-  //smth
 
   const generateJoke = () => {
     fetch(API_URL)
