@@ -1,57 +1,60 @@
 import { useState, useRef, useEffect } from "react";
 
 const API_URL = "https://api.chucknorris.io/jokes/random";
+const FAVOURITES_STORAGE_KEY = "myFavourites";
+const FAVOURITES_LIMIT = 10;
 
 function App() {
   const [joke, setJoke] = useState<string>("");
-  const [joking, setJoking] = useState<boolean>(false);
-  const favouriteList = localStorage.getItem("myFavourites");
-  const [favourites, setFavourites] = useState<string | null | string[]>(
-    favouriteList
+  const [isJoking, setIsJoking] = useState<boolean>(false);
+  const [favourites, setFavourites] = useState<string[]>(
+    JSON.parse(localStorage.getItem(FAVOURITES_STORAGE_KEY) || "[]")
   );
-  const [dubleClickFavourites, setDubleClickFavourites] =
-    useState<boolean>(false);
+  const [isFavourite, setIsFavourite] = useState<boolean>(false);
 
-  const intervalRef: any = useRef(null);
-
-  const generateJoke = () => {
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then((data) => setJoke(data.value));
-    setDubleClickFavourites(false);
-  };
-
-  const startJoking = () => {
-    setJoking(!joking);
-    intervalRef.current = setInterval(() => {
-      generateJoke();
-    }, 3000);
-  };
-
-  const stopJoking = () => {
-    setJoking(!joking);
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  };
-
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    localStorage.setItem("myFavourites", favourites as string);
-  });
+    localStorage.setItem(FAVOURITES_STORAGE_KEY, JSON.stringify(favourites));
+  }, [favourites]);
 
-  const addToFavourites = () => {
-    setFavourites([...(favourites as string[]), joke]);
-    setDubleClickFavourites(!dubleClickFavourites);
-    if (favourites?.includes(joke)) {
-      setFavourites((favourites as string[]).filter((e: string) => e !== joke));
+  const generateJoke = async () => {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      setJoke(data.value);
+      setIsFavourite(false);
+    } catch (error) {
+      console.error(error);
     }
-    if ((favourites as string[]).length === 10) {
-      (favourites as string[]).shift();
+  };
+
+  const toggleJoking = () => {
+    setIsJoking((prev) => !prev);
+    if (!isJoking) {
+      intervalRef.current = setInterval(() => {
+        generateJoke();
+      }, 3000);
+    } else {
+      clearInterval(intervalRef.current as unknown as number);
+      intervalRef.current = null;
+    }
+  };
+
+  const toggleFavourite = () => {
+    setIsFavourite((prev) => !prev);
+    if (isFavourite) {
+      setFavourites((prev) => prev.filter((e) => e !== joke));
+    } else {
+      if (favourites.length === FAVOURITES_LIMIT) {
+        favourites.shift();
+      }
+      setFavourites((prev) => [...prev, joke]);
     }
   };
 
   const removeAllFavourites = () => {
     setFavourites([]);
-    localStorage.removeItem("myFavourites");
+    localStorage.removeItem(FAVOURITES_STORAGE_KEY);
   };
 
   return (
@@ -63,39 +66,39 @@ function App() {
       <div className="w-full flex justify-around">
         <button
           className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
-          onClick={generateJoke}
-        >
+          onClick={generateJoke}>
+       
           Get joke
-        </button>
-        <button
-          className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
-          onClick={!joking ? startJoking : stopJoking}
-        >
-          {!joking ? "Start Joking" : "Stop Joking"}
-        </button>
-        <button
-          className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
-          onClick={addToFavourites}
-          type="button"
-        >
-          {dubleClickFavourites ? "Remove this favourite" : "Add to favourites"}
-        </button>
-        <button
-          className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
-          onClick={removeAllFavourites}
-          type="button"
-        >
-          Remove All Favourites
-        </button>
-      </div>
-      <div className="w-full flex flex-col justify-center items-center">
-        <h1 className="text-3xl">My Favourites</h1>
-        <div className="w-3/5">
-          <h4 className="text-lg text-center mt-5 text-green-500">{favourites}</h4>
+          </button>
+          <button
+            className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
+            onClick={toggleJoking}
+          >
+            {!isJoking ? "Start Joking" : "Stop Joking"}
+          </button>
+          <button
+            className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
+            onClick={toggleFavourite}
+          >
+            {isFavourite ? "Remove from favourites" : "Add to favourites"}
+          </button>
+          <button
+            className="bg-sky-500/100 border-0 rounded-xl text-white w-48 h-20 cursor-pointer"
+            onClick={removeAllFavourites}
+          >
+            Remove All Favourites
+          </button>
         </div>
-      </div>
-    </div>
+        <div className="w-full flex flex-col justify-center items-center">
+          <h1 className="text-3xl">My Favourites</h1>
+          <div className="w-3/5">
+            <h4 className="text-lg text-center mt-5 text-green-500">
+              {favourites.join(", ")}
+            </h4>
+          </div>
+        </div></div>
   );
 }
 
 export default App;
+      
